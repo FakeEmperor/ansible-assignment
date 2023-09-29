@@ -1,0 +1,12 @@
+#jinja2: lstrip_blocks: True
+# {{ ansible_managed }}
+
+{% if networking_rename_interface is defined -%}
+network:
+    version: 2
+    ethernets:
+        {{ networking_netplan_config_key }}:
+            match:
+                macaddress: "{{ networking_rename_interface.hwaddr | lower }}"
+            set-name: "{{ networking_rename_interface.new_name }}"
+{% endif %}

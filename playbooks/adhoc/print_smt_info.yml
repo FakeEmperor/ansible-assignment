@@ -1,0 +1,17 @@
+- name: "[debug] | Show information about HT/SMT"
+  delegate_to: localhost
+  run_once: yes
+  block:
+  - name: "[debug] | Gather information about HT/SMT"
+    set_fact:
+      ht_smt_info: "{{ ht_smt_info 
+        | default({}) 
+        | combine({ item.key : ('HT/SMT ON' if item.value.ansible_processor_threads_per_core > 1 else 'HT/SMT OFF') 
+        }) }}"
+    with_dict: "{{ hostvars }}"
+    no_log: yes
+  - name: "[debug] | Show info"
+    debug:
+      var: ht_smt_info
+  tags: 
+  - skip_ansible_lint

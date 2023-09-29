@@ -1,0 +1,2 @@
+---
+networking_netplan_conf_path: /etc/netplan/70.net-default-persistent.yaml

@@ -1,0 +1,13 @@
+---
+- name: "Apply netplan rules"
+  command: netplan apply
+  changed_when: false
+  async: 30
+  poll: 0
+- name: "Wait until connection is stable again"
+  wait_for_connection:
+    delay: 10
+    timeout: 10
+- name: "Generate netplan config"
+  command: netplan generate --debug
+  changed_when: false

@@ -1,0 +1,15 @@
+all:
+  vars:
+    networking_rename_default_name: lol0
+
+  hosts:
+    vm-test-01:
+      ansible_host: host.docker.internal
+      ansible_port: 2222
+
+      encryption_luks_device: /dev/sdb
+      encryption_luks_container_name: my-encrypted-vault
+      encryption_luks_params:
+        keyfile_src: "{{ playbook_dir }}/../secrets/luks_keyfile"
+        keyfile_dest: /root/luks/luks_keyfile
+        type: luks1

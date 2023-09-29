@@ -1,0 +1,12 @@
+# warn_list:
+# - yaml
+# - fqcn[action-core]
+
+warn_list:
+- "jinja[spacing]"
+- key-order[block]
+- role-name[path]
+
+skip_list:
+- "yaml"
+- fqcn[action-core]

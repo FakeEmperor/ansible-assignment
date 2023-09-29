@@ -1,0 +1,15 @@
+---
+- name: "[confg] | udev - Remove other configurations"
+  file:
+    name: "{{ item }}"
+    state: absent
+  loop:
+  - /etc/netplan/70.net-default-persistent.yml
+
+- name: "[confg] | udev - Change configuration"
+  template:
+    src: 70.net-default-persistent.rules.j2
+    dest: /etc/udev/rules.d/70.net-default-persistent.rules
+    mode: 0644
+  notify: 
+  - "update-udev"

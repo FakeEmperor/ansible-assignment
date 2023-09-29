@@ -1,0 +1,8 @@
+#jinja2: lstrip_blocks: True
+# {{ ansible_managed }}
+
+{% if networking_rename_interface is defined %}
+{# This will generate udev rules for those devices having hwadd defined #}
+# Renamed from {{ item.old_name }}
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="{{ item.hwaddr | lower }}", NAME="{{ item.new_name }}"
+{% endif %}

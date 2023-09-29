@@ -1,0 +1,30 @@
+---
+
+- name: "[check] | Check variables set"
+  assert:
+    that: 
+    - lookup("vars", item) is defined 
+    - lookup("vars", item) is not none
+    - lookup("vars", item) != ""
+  with_items:
+  - "adhoc_encrypt_root_neighbor_container_name"
+
+- name: "[prepr] | Find root neighbor partition"
+  import_tasks: "prepare.yml"
+
+- name: "[prepr] | Get current LUKS params"
+  set_fact:
+    _luks_params: "{{ encryption_luks_params | default({}) }}"
+
+- name: "[setup] | Format neighboring root partition"
+  include_role:
+    name: roles/encryption/luks
+  vars:
+    encryption_luks_device: "/dev/{{ _root_partition_neighbor }}"
+    encryption_luks_container_name: "{{ adhoc_encrypt_root_neighbor_container_name }}"
+    encryption_luks_params: >-
+      {{ 
+          _luks_params | combine(adhoc_encrypt_root_neighbor_luks_params | default({}))
+      }}
+  tags:
+  - skip_ansible_lint

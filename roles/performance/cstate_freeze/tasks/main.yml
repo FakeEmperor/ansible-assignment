@@ -1,0 +1,27 @@
+---
+- name: "[prepr] | Check current CPU idle manager"
+  ansible.builtin.slurp:
+    src: /sys/devices/system/cpu/cpuidle/current_driver
+  register: _cpuidle_current_driver
+
+- name: "[debug] | Show current CPU idle manager"
+  debug:
+    msg: "{{ _cpuidle_current_driver.content | b64decode }}"
+
+# Why in /etc/default/grub.d and not in /etc/default/grub or /etc/grub.d/41-custom?
+# https://github.com/hetzneronline/installimage/issues/39 
+# (same issue - one of the grub scripts overrides GRUB_CMDLINE_LINUX_DEFAULT)
+- name: "[confg] | Disable C-state switching"
+  copy:
+    content: 'GRUB_CMDLINE_LINUX_DEFAULT="{{ performance_cstate_freeze_grub_args }}"'
+    dest: /etc/default/grub.d/90-cstate_freeze.cfg
+    mode: 0644
+  when: performance_cstate_freeze_state | lower == "present"
+  notify: update-grub
+
+- name: "[confg] | Enable C-state switching"
+  file:
+    name: /etc/default/grub.d/90-cstate_freeze.cfg
+    state: absent
+  when: performance_cstate_freeze_state | lower != "present"
+  notify: update-grub

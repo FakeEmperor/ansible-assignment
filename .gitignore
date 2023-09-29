@@ -1,0 +1,9 @@
+# Temproray files or builds
+build/
+.vagrant/
+
+# Secret files
+/secrets/
+
+# VSCode settings
+.vscode/settings.json

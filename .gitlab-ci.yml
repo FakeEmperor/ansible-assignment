@@ -1,0 +1,43 @@
+---
+stages:
+- ci-build
+- lint
+- test
+- converge
+
+variables:
+  CI_DEBUG_TRACE: "true"
+  IMAGE_NAME: ${CI_IMAGE}
+  IMAGE_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_REF_SHORT_SHA}
+  IMAGE_CACHE_TAG: ${CI_COMMIT_REF_SLUG}
+  ANSIBLE_CONFIG: ansible.cfg
+
+default:
+  tags:
+  - type/docker
+
+ci-build/ansible:
+  stage: ci-build
+  image:
+    name: docker/compose:alpine-1.29.2
+    entrypoint: [""]
+  script:
+  - docker login ${CI_REGISTRY} -p "${DEPLOY_PASSWORD}" -u "${DEPLOY_USER}"
+  - docker pull ${IMAGE_NAME}:${IMAGE_CACHE_TAG} || true
+  - docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+  - docker push ${IMAGE_NAME}:${IMAGE_TAG}
+  - echo "Updating cache image"
+  - docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:${IMAGE_CACHE_TAG}
+  - docker push ${IMAGE_NAME}:${IMAGE_CACHE_TAG}
+
+lint/yamllint:
+  stage: lint
+  image: ${IMAGE_NAME}:${IMAGE_TAG}
+  script:
+  - yamllint --strict -f colored roles/ inventory/ playbooks/
+
+lint/ansible:
+  stage: lint
+  image: ${IMAGE_NAME}:${IMAGE_TAG}
+  script:
+  - ansible-lint

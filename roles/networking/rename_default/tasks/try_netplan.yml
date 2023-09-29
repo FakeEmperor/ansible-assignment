@@ -1,0 +1,33 @@
+---
+- name: "Try netplan rules"
+  command: netplan try --timeout=30
+  changed_when: false
+  async: 40
+  poll: 0
+  register: _netplan_try
+  
+- name: "Wait until connection is stable again"
+  block:
+  - name: "Wait for SSH connection" 
+    wait_for_connection:
+      delay: 10
+      timeout: 10
+  rescue:
+  - name: "Remove config file"
+    file:
+      name: "{{ networking_netplan_conf_path }}"
+      state: absent
+    retries: 5
+    delay: 5
+  - name: "Fail fast"
+    fail:
+      msg: "Configuration failed: couldn't connect to host after applying config"
+  always:
+  - name: "Wait until 'netplan try' finishes"
+    async_status:
+      jid: "{{ _netplan_try.ansible_job_id }}"
+    register: _job_result
+    until: _job_result.finished
+    changed_when: false
+    retries: 5
+    delay: 5

@@ -1,0 +1,50 @@
+---
+- name: "[check] | Assert distribution is Debian based"
+  assert:
+    that: >-
+      ansible_os_family | lower == "debian"
+
+- name: "[prepr] | Check if scaling governor enabled"
+  stat:
+    path: /sys/devices/system/cpu/cpu0/cpufreq
+  register: _cpufreq_folder
+
+- name: "[prepr] | Check existence of scaling governor"
+  assert:
+    that: >- 
+      _cpufreq_folder.stat.exists and _cpufreq_folder.stat.isdir
+
+- name: "[prepr] | Find all CPUs"
+  ansible.builtin.find:
+    paths: /sys/devices/system/cpu/
+    patterns: "cpu\\d+"
+    use_regex: yes
+    file_type: directory
+  register: _cpu_folders       
+
+- name: "[depen] | Install cpufrequtils"
+  package:
+    name:
+    - cpufrequtils
+    state: present
+
+- name: "[confg] | Disable ondemand service"
+  service:
+    name: ondemand
+    state: stopped
+    enabled: no
+
+- name: "[confg] | Set CPU scaling governor for current runtime"
+  copy:
+    content: "{{ performance_scaling_governor_name }}"
+    dest: "{{ item.path }}/cpufreq/scaling_governor"
+  with_items: "{{ _cpu_folders.files }}"
+  tags:
+  - skip_ansible_lint
+
+- name: "[confg] | Set CPU governor permanently"
+  copy:
+    content: GOVERNOR="{{ performance_scaling_governor_name }}"
+    dest: /etc/default/cpufrequtils
+  tags:
+  - skip_ansible_lint

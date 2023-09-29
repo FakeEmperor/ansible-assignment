@@ -1,0 +1,10 @@
+---
+- name: "update-netplan"
+  include_tasks: tasks/restart_netplan.yml
+  tags:
+  - skip_ansible_lint
+
+- name: "update-udev"
+  include_tasks: tasks/restart_udev.yml
+  tags:
+  - skip_ansible_lint

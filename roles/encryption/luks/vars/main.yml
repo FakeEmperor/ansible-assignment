@@ -1,0 +1,5 @@
+---
+encryption_luks_params_default:
+  keyfile_src: null
+  keyfile_dest: null
+  type: luks2

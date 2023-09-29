@@ -1,0 +1,54 @@
+---
+
+- name: "[debug] | Show partition info"
+  debug:
+    var: ansible_facts.devices
+  when:
+  - ansible_verbosity > 1
+
+- name: "[prepr] | Get root partition UUID"
+  set_fact:
+    _root_uuid: "{{ (ansible_facts.mounts | selectattr('mount', 'equalto', '/') | first).uuid }}"
+
+- name: "[prepr] | Find device that has root partition on it"
+  set_fact:
+    _root_device_name: "{{ item.key }}"
+  when: 
+  - item.value.partitions is defined and item.value.partitions | length > 0
+  - _root_uuid in item.value.partitions.values() | map(attribute="uuid")
+  with_dict: "{{ ansible_facts.devices }}"
+  no_log: "{{ ansible_verbosity < 3 }}"
+
+- name: "[check] | Check that root device is found" 
+  assert:
+    that: _root_device_name is defined
+
+- name: "[prepr] | Get root partition name"
+  set_fact:
+    _root_partition_name: "{{ item.key }}"
+    _root_partition_number: "{{ item.key | split(_root_device_name) | int }}"
+  when: 
+  - item.value.uuid == _root_uuid
+  with_dict: "{{ ansible_facts.devices[_root_device_name].partitions }}"
+  no_log: "{{ ansible_verbosity < 3 }}"
+
+- name: "[prepr] | Get root device all partition numbers"
+  set_fact:
+    _root_device_partition_tuples: >-
+      {{  _partition_names | map('split', _root_device_name) | map('join', '') | map('int') | list | zip(_partition_names) | list }}
+  vars:
+    _partition_names: "{{ ansible_facts.devices[_root_device_name].partitions.keys() | list }}"
+
+- name: "[prepr] | Find root partition neighbor"
+  set_fact:
+    _root_partition_neighbor: "{{ item.1 }}"
+  when: item.0 | int > _root_partition_number | int and _root_partition_neighbor is not defined
+  loop: "{{ _root_device_partition_tuples }}"
+
+- name: "[check] | Check that neighbor is found" 
+  assert:
+    that: _root_partition_neighbor is defined
+
+- name: "[debug] | Show root partition neighbor"
+  debug:
+    msg: "Partition '{{ _root_partition_neighbor }}' is next to '{{ _root_partition_name }}' on '{{ _root_device_name }}'"

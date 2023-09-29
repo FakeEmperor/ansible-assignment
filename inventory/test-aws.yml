@@ -1,0 +1,20 @@
+all:
+  vars:
+    networking_rename_default_name: lol0
+    adhoc_encrypt_root_neighbor_enabled: yes
+    encryption_luks_params:
+        keyfile_src: "{{ playbook_dir }}/../secrets/luks_keyfile"
+        keyfile_dest: /root/luks/luks_keyfile
+
+  hosts:
+    vm-test-01:
+      ansible_host: "{{ lookup('env', 'TEST_AWS_MACHINE_IP') }}"
+      ansible_user: ubuntu
+      ansible_become: yes
+
+      encryption_luks_device: /dev/xvdb
+      encryption_luks_container_name: luks-test
+
+      adhoc_encrypt_root_neighbor_container_name: test-neighbor
+      adhoc_encrypt_root_neighbor_luks_params:
+        type: luks1

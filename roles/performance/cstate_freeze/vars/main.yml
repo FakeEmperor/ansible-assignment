@@ -1,0 +1,2 @@
+---
+performance_cstate_freeze_grub_args: intel_idle.max_cstate=0 processor.max_cstate=1 idle=poll

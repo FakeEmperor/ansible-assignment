@@ -1,0 +1,8 @@
+---
+- name: "[setup] | Update GRUB"
+  command: update-grub2
+  changed_when: yes
+
+- name: "[setup] | Reboot and wait for the host"
+  ansible.builtin.reboot:
+    reboot_timeout: 300

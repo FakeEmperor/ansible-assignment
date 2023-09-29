@@ -1,0 +1,76 @@
+---
+- name: "[confg] | netplan - Remove other configurations"
+  file:
+    name: "{{ item }}"
+    state: absent
+  loop:
+  - /etc/udev/rules.d/70.net-default-persistent.rules
+
+- name: "[prepr] | netplan - Get configuration for default interface"
+  block:
+  - name: "[prepr] | netplan - Set default configuration key"
+    set_fact:
+      networking_netplan_config_key: "{{ ansible_default_ipv4.interface }}"
+  - name: "[prepr] | netplan - Get configuration"
+    command: netplan get
+    changed_when: false
+    register: _netplan_get_result
+  - set_fact:
+      _netplan_networks_config: >-
+        {{ 
+            (_netplan_get_result.stdout | from_yaml) | json_query("network.ethernets") | default({}) | dict2items
+        }}
+    tags:
+    - skip_ansible_lint
+  - set_fact:
+      networking_netplan_config_key: >-
+        {{ 
+            (
+              (
+                _netplan_networks_config 
+                  | json_query("[?value.match.macaddress=='" + networking_rename_interface.hwaddr + "'].key")
+              ) + [networking_netplan_config_key]
+            ) | first
+        }}
+    tags:
+    - skip_ansible_lint
+
+- name: "[setup] | netplan - Change configuration"
+  block:
+  - name: "[confg] | netplan - Template file"
+    template:
+      src: 70.net-default-persistent.yaml.j2
+      dest: "{{ networking_netplan_conf_path }}"
+      mode: 0644
+    register: _template_result
+  - name: "[verfy] | netplan - Test and generate configuration for next reboot"
+    command: netplan generate --debug
+    register: _netplan_generate_command
+    changed_when: false
+  - name: "[verfy] | netplan - Test netplan configuration"
+    import_tasks: try_netplan.yml
+    when: _template_result is changed
+  - name: "[setup] | netplan - Trigger netplan update"
+    debug:
+      msg: "Will re-apply netplan configs"
+    changed_when: true
+    when: _template_result is changed
+    notify:
+    - update-netplan
+    tags:
+    - skip_ansible_lint
+  rescue:
+  - name: "[debug] | netplan - Get errored configuration"
+    command: cat {{ networking_netplan_conf_path }}
+    changed_when: no
+    register: file_output
+  - name: "[debug] | netplan - Show errored configuration"
+    debug:
+      msg: file_output.stdout
+  - name: "[rollb] | netplan - Remove configuration"
+    file:
+      name: "{{ networking_netplan_conf_path }}"
+      state: absent
+  - name: "[rollb] | netplan - error out"
+    fail:
+      msg: "netplan generate failed: {{ _netplan_generate_command.stderr }}"

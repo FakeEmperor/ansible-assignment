@@ -1,0 +1,13 @@
+---
+- name: "Reload udev rules"
+  ansible.builtin.command: udevadm control --reload-rules
+  changed_when: false
+- name: "Trigger udev update"
+  ansible.builtin.command: udevadm trigger
+  changed_when: false
+  async: 60
+  poll: 0
+- name: "Wait until connection is stable again"
+  wait_for_connection:
+    delay: 2
+    timeout: 30

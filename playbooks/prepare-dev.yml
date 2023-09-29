@@ -1,0 +1,11 @@
+---
+- hosts: all
+  name: "Prepare a host with developer tools for debugging ansible"
+  tasks:
+  - name: "[setup] | Install shitton of tools"
+    package:
+      name:
+      - htop
+      - curl
+      - linux-tools-common
+      state: present

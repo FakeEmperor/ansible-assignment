@@ -1,0 +1,13 @@
+---
+version: '3.7'
+
+services:
+  ansible:
+    build: .
+    image: ansible-ansible
+    environment:
+      ANSIBLE_CONFIG: /workspace/ansible.cfg
+    command: /bin/sh -c "echo 'started infinite loop!'; while sleep 1000; do :; done"
+    volumes:
+      - ./:/workspace
+    working_dir: /workspace

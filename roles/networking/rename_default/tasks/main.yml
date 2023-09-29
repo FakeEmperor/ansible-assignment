@@ -1,0 +1,39 @@
+---
+- name: "[check] | Assert distribution is Debian based"
+  assert:
+    that: >-
+      ansible_os_family | lower == "debian"
+
+- name: "[check] | Assert that default interface is found"
+  assert:
+    that: >-
+      ansible_default_ipv4.interface is defined and ansible_default_ipv4.interface != ""
+
+- name: "[check] | Assert that new name is set"
+  assert:
+    that: >-
+      networking_rename_default_name is defined and networking_rename_default_name != ""
+
+- name: "[prepr] | Check if netplan is present"
+  command: netplan info
+  register: netplan_command
+  ignore_errors: true
+  changed_when: false
+
+- name: "[prepr] | Prepare facts for configuration"
+  set_fact:
+    netplan_enabled: "{{ netplan_command is success }}"
+    networking_rename_interface:
+      new_name: "{{ networking_rename_default_name }}"
+      old_name: "{{ ansible_default_ipv4.interface }}"
+      hwaddr: "{{ hostvars[inventory_hostname]['ansible_' + ansible_default_ipv4.interface].macaddress }}"
+
+- name: "[confg] | Use udev rules"
+  import_tasks: "configure_udev.yml"
+  when:
+  - not netplan_enabled | bool
+
+- name: "[confg] | Use netplan rules"
+  import_tasks: "configure_netplan.yml"
+  when:
+  - netplan_enabled | bool

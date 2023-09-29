@@ -1,0 +1,7 @@
+---
+encryption_luks_device: null
+encryption_luks_container_name: null
+encryption_luks_params:
+  keyfile_src: null
+  keyfile_dest: null
+  type: luks2

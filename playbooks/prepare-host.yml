@@ -1,0 +1,18 @@
+---
+- hosts: all
+  name: "Prepare a host with all of the core operations"
+  roles:
+  - roles/networking/rename_default
+  # - roles/performance/scaling_governor
+  - roles/performance/cstate_freeze
+  - roles/encryption/luks
+  tasks:
+  - name: "Encrypt neighboring to root partition"
+    include_role: 
+      name: roles/adhoc/encrypt_root_neighbor
+    when: 
+    - adhoc_encrypt_root_neighbor_enabled is defined
+    - adhoc_encrypt_root_neighbor_enabled | bool
+  post_tasks:
+  - name: "[debug] | Print SMT info at the end of the playbook run"
+    import_tasks: "adhoc/print_smt_info.yml"

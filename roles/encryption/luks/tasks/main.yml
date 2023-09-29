@@ -1,0 +1,108 @@
+---
+
+- name: "[prepr] | Merge options with defaults"
+  set_fact:
+    _encryption_luks_params: "{{ encryption_luks_params_default | combine(encryption_luks_params | default({})) }}"
+
+- name: "[check] | Check variables set"
+  assert:
+    that: 
+    - lookup("vars", item) is defined 
+    - lookup("vars", item) is not none
+    - lookup("vars", item) != ""
+  with_items:
+  - "encryption_luks_device"
+  - "encryption_luks_container_name"
+
+- name: "[check] | Check luks params set"
+  assert:
+    that: 
+    - _encryption_luks_params[item] is defined 
+    - _encryption_luks_params[item] is not none
+    - _encryption_luks_params[item] != ""
+  with_items:
+  - "keyfile_src"
+  - "keyfile_dest"
+
+# - name: "[WARN] | WARN if encryption_luks_force_reencrypt is set"
+#   debug:
+#     msg: "WARNING: FORCE RE-ENCRYPTION IS SET THIS CAN CAUSE DATA LOSS"
+#   when:
+#   - encryption_luks_force_reencrypt
+
+# - name: "[check] | Check that device is not mapped already"
+#   register: _dmsetup_info
+#   command: dmsetup info -c --noheadings -o name "{{ encryption_luks_device }}"
+#   changed_when: no
+#   failed_when: 
+#   - _dmsetup_info is success
+#   - not encryption_luks_force_reencrypt | bool
+
+# - name: "[check] | Check that device is not encryped already"
+#   command: cryptsetup isLuks {{ encryption_luks_device }}
+#   register: _is_luks
+#   changed_when: no
+#   failed_when:
+#   - _is_luks is success
+#   - not encryption_luks_force_reencrypt | bool
+
+# - name: "[check] | Check if device does not have partitions"
+#   assert:
+#     that:
+#     - encryption_luks_device not in ansible_facts.devices or \
+#       ansible_facts.devices[encryption_luks_device].partitions | length == 0
+
+# - name: "[check] | Check that device is not mounted"
+#   command: findmnt "{{ item }}"
+#   changed_when: no
+#   register: _findmnt_info
+#   failed_when: _findmnt_info is success
+#   with_items:
+#   - "{{ encryption_luks_device }}"
+#   - "/dev/mapper/{{ encryption_luks_container_name }}"
+
+- name: "[prepr] | Get block size in sectors"
+  command: blockdev --getsz {{ encryption_luks_device }}
+  register: _blockdev_size
+  changed_when: no
+
+# https://superuser.com/questions/1557750/why-does-cryptsetup-fail-with-container-10m-in-size
+- name: "[check] | Check that block size is enough for LUKS2"
+  assert:
+    that:
+    - _blockdev_size.stdout | int > 32768  # 16MiB
+  when:
+  - _encryption_luks_params.type | lower == "luks2"
+
+- name: "[confg] | Set LUKS keyfile parent directory"
+  file:
+    path: "{{ _encryption_luks_params.keyfile_dest | dirname }}"
+    mode: 0600
+    state: directory
+
+- name: "[confg] | Set LUKS keyfile"
+  copy:
+    src: "{{ _encryption_luks_params.keyfile_src }}"
+    dest: "{{ _encryption_luks_params.keyfile_dest }}"
+    mode: 0600
+
+- name: "[setup] | Create LUKS container"
+  community.crypto.luks_device:
+    device: "{{ encryption_luks_device }}"
+    state: "opened"
+    name: "{{ encryption_luks_container_name }}"
+    keyfile: "{{ _encryption_luks_params.keyfile_dest }}"
+    type: "{{ _encryption_luks_params.type }}"
+
+- name: "[prepr] | Get UUID of the device"
+  command: blkid -s UUID -o value "{{ encryption_luks_device }}"
+  register: _blkid_info
+  changed_when: no
+
+- name: "[setup] | Add LUKS device to crypttab"
+  community.general.crypttab:
+    name: "{{ encryption_luks_container_name }}"
+    backing_device: "UUID={{ _blkid_info.stdout | trim }}"
+    state: present
+    opts: nofail
+    password: "{{ _encryption_luks_params.keyfile_dest }}"
